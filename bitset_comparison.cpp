@@ -2,10 +2,11 @@
 #include <chrono>
 #include <vector>
 #include <bitset>
+#include <random>
 #include <boost/dynamic_bitset.hpp>
 
 const size_t SIZE = 10000000;  // Size of the bitsets
-const size_t READ_ITERATIONS = 10000;  // Number of read iterations
+const size_t READ_ITERATIONS = SIZE * 10;  // Number of read iterations
 
 // Function to measure the execution time of a callable
 template <typename Func>
@@ -13,25 +14,39 @@ void measureTime(const std::string& name, Func&& func) {
     auto start = std::chrono::high_resolution_clock::now();
     func();
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    std::cout << name << " time: " << duration.count() << " µs\n";
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << name << " time: " << duration.count() << " ms\n";
+}
+
+// Function to generate pseudo-random bits using XOR
+inline bool generateRandomBit(size_t i) {
+    return (i ^ (i >> 1)) & 1;
 }
 
 int main() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<size_t> index_dist(0, SIZE - 1);
+
+    // Generate random indices
+    std::vector<size_t> indices;
+    indices.reserve(READ_ITERATIONS);
+    for (size_t j = 0; j < READ_ITERATIONS; ++j) {
+        indices.push_back(index_dist(gen));
+    }
+
     // Test std::vector<bool>
     std::vector<bool> vec(SIZE);
     measureTime("std::vector<bool> set", [&]() {
         for (size_t i = 0; i < SIZE; ++i) {
-            vec[i] = (i % 2 == 0);
+            vec[i] = generateRandomBit(i);
         }
     });
     measureTime("std::vector<bool> read", [&]() {
-        size_t sum = 0;
-        for (size_t j = 0; j < READ_ITERATIONS; ++j) {
-            for (size_t i = 0; i < SIZE; ++i) {
-                if (vec[i]) {
-                    ++sum;
-                }
+        volatile size_t sum = 0;
+        for (size_t index : indices) {
+            if (vec[index]) {
+                ++sum;
             }
         }
     });
@@ -40,16 +55,14 @@ int main() {
     std::bitset<SIZE> bitset;
     measureTime("std::bitset set", [&]() {
         for (size_t i = 0; i < SIZE; ++i) {
-            bitset[i] = (i % 2 == 0);
+            bitset[i] = generateRandomBit(i);
         }
     });
     measureTime("std::bitset read", [&]() {
-        size_t sum = 0;
-        for (size_t j = 0; j < READ_ITERATIONS; ++j) {
-            for (size_t i = 0; i < SIZE; ++i) {
-                if (bitset[i]) {
-                    ++sum;
-                }
+        volatile size_t sum = 0;
+        for (size_t index : indices) {
+            if (bitset[index]) {
+                ++sum;
             }
         }
     });
@@ -58,16 +71,14 @@ int main() {
     boost::dynamic_bitset<> dynBitset(SIZE);
     measureTime("boost::dynamic_bitset set", [&]() {
         for (size_t i = 0; i < SIZE; ++i) {
-            dynBitset[i] = (i % 2 == 0);
+            dynBitset[i] = generateRandomBit(i);
         }
     });
     measureTime("boost::dynamic_bitset read", [&]() {
-        size_t sum = 0;
-        for (size_t j = 0; j < READ_ITERATIONS; ++j) {
-            for (size_t i = 0; i < SIZE; ++i) {
-                if (dynBitset[i]) {
-                    ++sum;
-                }
+        volatile size_t sum = 0;
+        for (size_t index : indices) {
+            if (dynBitset[index]) {
+                ++sum;
             }
         }
     });
