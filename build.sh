@@ -1,0 +1,1 @@
+g++ -std=c++11 -O3 bitset_comparison.cpp -lboost_system -o bitset_comparison
